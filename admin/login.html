@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Login | Property CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{
+    margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:#12a4dd;font-family:Poppins,Arial,sans-serif;
+  }
+  .wrap{width:100%;max-width:400px;padding:24px}
+  .brand{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:34px}
+  .badge{
+    width:48px;height:48px;border-radius:50%;border:3px solid #fff;
+    display:grid;place-items:center;flex-shrink:0;
+  }
+  .badge svg{width:24px;height:24px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .brand span{color:#fff;font-size:1.7rem;font-weight:400;letter-spacing:.28em;margin-left:-.28em}
+  form{background:#fff;border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.15);overflow:hidden}
+  .field{padding:18px 20px;border-bottom:1px solid #eee;position:relative}
+  .field:last-of-type{border-bottom:none}
+  .field label{display:block;font-size:.7rem;color:#9aa0a6;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+  .field input{
+    width:100%;border:0;outline:0;font:inherit;font-size:1.05rem;color:#333;padding:2px 0;background:transparent;
+  }
+  .field.pw{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .field.pw > div{flex:1;min-width:0}
+  .hint{font-size:.8rem;color:#bbb;white-space:nowrap;flex-shrink:0}
+  .btn{
+    display:block;width:100%;margin-top:22px;padding:16px;border:0;border-radius:6px;
+    background:#f7b733;color:#8a5a00;font:inherit;font-weight:700;font-size:1.05rem;
+    letter-spacing:.02em;cursor:pointer;box-shadow:0 8px 18px rgba(0,0,0,.12);
+  }
+  .btn:hover{background:#f5ad1f}
+  .btn:disabled{opacity:.7;cursor:default}
+  .error{
+    margin-top:16px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.5);
+    border-radius:6px;padding:10px 14px;font-size:.88rem;text-align:center;
+  }
+  .error[hidden]{display:none}
+  .quick-links{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:0 0 22px}
+  .quick-links a{color:#fff;text-decoration:none;font-size:.78rem;font-weight:600;padding:8px 10px;border:1px solid rgba(255,255,255,.55);border-radius:7px}
+  .quick-links a:hover{background:rgba(255,255,255,.15)}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="quick-links" aria-label="Public pages">
+      <a href="/">Contact Us</a>
+      <a href="/enquiry">Property Enquiry</a>
+    </nav>
+    <div class="brand">
+      <span class="badge">
+        <svg viewBox="0 0 24 24"><path d="M12 3a5 5 0 0 0-5 5v3H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1V8a5 5 0 0 0-5-5z"/><path d="M9 8v3h6V8"/></svg>
+      </span>
+      <span>ADMIN</span>
+    </div>
+
+    <form id="loginForm" autocomplete="off">
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" required autofocus>
+      </div>
+      <div class="field pw">
+        <div>
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" autocomplete="current-password" required>
+        </div>
+      </div>
+    </form>
+    <button type="submit" form="loginForm" class="btn" id="loginBtn">Login</button>
+    <p class="error" id="loginError" hidden></p>
+  </div>
+
+<script>
+const form = document.getElementById("loginForm");
+const btn = document.getElementById("loginBtn");
+const err = document.getElementById("loginError");
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  err.hidden = true;
+  btn.disabled = true;
+  btn.textContent = "Logging in...";
+  try {
+    const res = await fetch("/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: document.getElementById("username").value.trim(),
+        password: document.getElementById("password").value,
+      }),
+    });
+    if (res.ok) {
+      location.href = "/admin";
+      return;
+    }
+    const data = await res.json().catch(() => ({}));
+    err.textContent = res.status === 503
+      ? (data.detail || "Admin login is not configured yet.")
+      : "Invalid username or password.";
+    err.hidden = false;
+  } catch {
+    err.textContent = "Could not reach the server. Please try again.";
+    err.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Login";
+  }
+});
+</script>
+</body>
+</html>

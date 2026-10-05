@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pymongo>=4.13
+pydantic[email]
+python-dotenv
+dnspython
+itsdangerous
+twilio>=9.0.0
+requests>=2.31.0

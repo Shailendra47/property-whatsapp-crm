@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Real Estate Enquiry Form | Your Property, Our Priority</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link href="/static/style.css" rel="stylesheet">
+</head>
+<body>
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <main class="container-xl page">
+    <div class="row align-items-center g-5 w-100 mx-0">
+
+      <section class="col-lg-5">
+        <h1 class="headline">Your Property, Our Priority. Contact Us Today</h1>
+      </section>
+
+      <section class="col-lg-7">
+        <form id="enquiryForm" class="form-card form-card-wide" novalidate>
+          <h2 class="form-title">Real Estate Enquiry Form</h2>
+
+          <h3 class="section-label">Personal Information</h3>
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label for="first_name" class="form-label">First Name <span class="req">*</span></label>
+              <input type="text" class="form-control" id="first_name" name="first_name" minlength="2" maxlength="50" required>
+              <div class="invalid-feedback">Please enter your first name.</div>
+            </div>
+            <div class="col-md-6">
+              <label for="last_name" class="form-label">Last Name</label>
+              <input type="text" class="form-control" id="last_name" name="last_name" maxlength="50">
+            </div>
+            <div class="col-md-6">
+              <label for="email" class="form-label">Email <span class="req">*</span></label>
+              <input type="email" class="form-control" id="email" name="email"
+                     pattern="[^@\s]+@[^@\s]+\.[^@\s]+" required>
+              <div class="invalid-feedback">Please enter a valid email address.</div>
+            </div>
+            <div class="col-md-6">
+              <label for="mobile_number" class="form-label">Mobile Number <span class="req">*</span></label>
+              <input type="tel" class="form-control" id="mobile_number" name="mobile_number" placeholder="+91 98765 43210" required>
+              <div class="invalid-feedback">Please enter a valid mobile number (10–15 digits).</div>
+            </div>
+          </div>
+
+          <h3 class="section-label">Property Preferences</h3>
+          <div class="row g-3 mb-3">
+            <div class="col-12">
+              <label for="location_preference" class="form-label">Location Preference <span class="req">*</span></label>
+              <div class="loc-wrap">
+                <input type="text" class="form-control" id="location_preference" name="location_preference"
+                       minlength="2" maxlength="150" autocomplete="off"
+                       placeholder="Start typing an area or city, e.g. Haldwani"
+                       aria-autocomplete="list" aria-controls="locList" required>
+                <ul class="loc-list" id="locList" role="listbox" hidden></ul>
+                <div class="invalid-feedback">Please enter your preferred location.</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label for="planning_to_buy" class="form-label">Planning to Buy <span class="req">*</span></label>
+              <select class="form-select" id="planning_to_buy" name="planning_to_buy" required></select>
+              <div class="invalid-feedback">Please select when you plan to buy.</div>
+            </div>
+            <div class="col-md-6">
+              <label for="budget_range" class="form-label">Budget Range <span class="req">*</span></label>
+              <select class="form-select" id="budget_range" name="budget_range" required></select>
+              <div class="invalid-feedback">Please select your budget range.</div>
+            </div>
+            <div class="col-md-6">
+              <label for="payment_option" class="form-label">Payment Option <span class="req">*</span></label>
+              <select class="form-select" id="payment_option" name="payment_option" required></select>
+              <div class="invalid-feedback">Please select a payment option.</div>
+            </div>
+            <div class="col-md-6">
+              <label for="bhk_preference" class="form-label">BHK Preference <span class="req">*</span></label>
+              <select class="form-select" id="bhk_preference" name="bhk_preference" required></select>
+              <div class="invalid-feedback">Please select your BHK preference.</div>
+            </div>
+          </div>
+
+          <h3 class="section-label">Remarks / Requirements</h3>
+          <div class="mb-3">
+            <textarea class="form-control" id="remarks" name="remarks" rows="2" maxlength="1000"
+                      aria-label="Remarks / Requirements"></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-submit w-100" id="submitBtn">Submit Enquiry</button>
+        </form>
+      </section>
+
+    </div>
+  </main>
+
+  <div class="popup-overlay" id="successPopup" hidden>
+    <div class="popup" role="dialog" aria-modal="true" aria-labelledby="popupTitle">
+      <button type="button" class="popup-close" id="popupClose" aria-label="Close">&times;</button>
+      <div class="popup-top">
+        <div class="popup-check">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+        </div>
+        <h3 id="popupTitle">Thank You!</h3>
+        <p>Your enquiry has been submitted. We will contact you shortly.</p>
+      </div>
+      <div class="popup-bottom">
+        <button type="button" class="popup-btn" id="popupOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/enquiry.js"></script>
+</body>
+</html>
