@@ -14,7 +14,8 @@ body {
   color: var(--ink);
   background: #fff;
   position: relative;
-  overflow: hidden;      /* clips the yellow blobs so they never add a scrollbar */
+  overflow-x: hidden;
+  overflow-y: auto;
   min-height: 100vh;
   min-height: 100dvh;
 }
@@ -229,3 +230,65 @@ body {
 .loc-list li:hover, .loc-list li.active { background: #fff6cc; }
 .loc-list li.muted { color: #888; cursor: default; font-size: .82rem; }
 .loc-list li.muted:hover { background: transparent; }
+
+/* Responsive layout for the Contact Us and Property Enquiry pages */
+@media (max-width: 991.98px) {
+  .page {
+    align-items: flex-start;
+    padding-top: clamp(1.25rem, 4vw, 2.5rem);
+    padding-bottom: clamp(1.5rem, 5vw, 3rem);
+  }
+  .page > .row { --bs-gutter-y: 1.5rem; }
+  .headline {
+    max-width: 15ch;
+    font-size: clamp(2.1rem, 6vw, 3.4rem);
+    margin-inline: auto;
+  }
+  .form-card, .form-card-wide {
+    width: 100%;
+    max-width: 720px;
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .page {
+    min-height: 100svh;
+    padding: 1rem .25rem 1.5rem;
+  }
+  .page > .row { --bs-gutter-x: 1rem; --bs-gutter-y: 1.25rem; }
+  .headline {
+    max-width: 14ch;
+    font-size: clamp(2rem, 9.5vw, 2.8rem);
+    line-height: 1.08;
+  }
+  .form-card, .form-card-wide {
+    padding: 1.25rem;
+    border-radius: 12px;
+  }
+  .form-title { font-size: 1.4rem; margin-bottom: 1.15rem; }
+  .section-label { margin-top: 1rem; }
+  .form-control, .form-select { min-height: 46px; font-size: 16px; }
+  textarea.form-control { min-height: 88px; }
+  .form-check { padding-left: 1.75rem; }
+  .form-check-input { width: 1.15rem; height: 1.15rem; margin-left: -1.75rem; }
+  .form-check-label, .form-text { line-height: 1.5; }
+  .blob-1 { width: 390px; height: 390px; top: -120px; left: -210px; }
+  .blob-2 { width: 300px; height: 300px; top: 260px; left: -115px; }
+  .blob-3 { width: 360px; height: 360px; bottom: -210px; left: -195px; }
+  .popup-overlay { padding: .75rem; }
+  .popup { max-height: calc(100dvh - 1.5rem); overflow-y: auto; }
+  .popup-top { padding: 1.5rem .9rem 1.8rem; }
+  .popup-check { width: 68px; height: 68px; margin-bottom: .8rem; }
+  .popup-check svg { width: 36px; height: 36px; }
+  .popup h3 { font-size: 1.4rem; }
+  .popup-top p { font-size: .9rem; }
+  .popup-close { top: 8px; right: 8px; width: 34px; height: 34px; border-width: 1px; }
+  .popup-bottom { padding: 1.5rem 1rem; }
+  .alert-card { max-height: calc(100dvh - 1.5rem); overflow-y: auto; }
+  .alert-art { height: 150px; }
+}
+
+@media (max-height: 720px) and (min-width: 992px) {
+  .page { align-items: flex-start; padding-top: 1.25rem; padding-bottom: 1.25rem; }
+}
