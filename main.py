@@ -186,6 +186,8 @@ async def create_contact(form: ContactForm, background_tasks: BackgroundTasks):
             phone=whatsapp_phone,
             contact_id=str(result.inserted_id),
             background_tasks=background_tasks,
+            full_name=form.full_name,
+            email=str(form.email),
         )
         if form.whatsapp_opt_in
         else {"started": False, "status": "not_requested"}

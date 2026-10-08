@@ -95,7 +95,7 @@ The script prints `HX...` Content SIDs. Copy each printed line into the correspo
 - planning, budget, payment category/subcategory, and BHK list-picker SIDs
 - `TWILIO_QUICK_REPLY_MOBILE_SID`
 
-Submit the `property_contact_start` template for WhatsApp approval in Twilio Console. The first template must be approved before it can start a business-initiated chat. The list-picker and quick-reply templates are used after the customer has replied. If Twilio reports `ContentSid is Invalid`, confirm the SID is an `HX...` SID from this same account and was copied without spaces.
+Submit the `property_contact_start` template for WhatsApp approval in Twilio Console. Its opening message is “Thanks for your interest! 🏡 Which location or area are you looking for a property in?” The first template must be approved before it can start a business-initiated chat. The list-picker and quick-reply templates are used after the customer has replied. If Twilio reports `ContentSid is Invalid`, confirm the SID is an `HX...` SID from this same account and was copied without spaces. The Sandbox cannot send this custom start template; use a registered WhatsApp sender for this form-triggered flow.
 
 ## 7. Run the app and expose a local HTTPS webhook
 
@@ -141,11 +141,11 @@ Choose **POST** and save. For a registered WhatsApp sender, open **Messaging →
 
 ### Test automatic form-triggered opening message
 
-1. Use a registered WhatsApp sender with an approved start template (the Sandbox cannot send your custom start template).
+1. Use a registered WhatsApp sender with an approved start template. The template created by `create_twilio_content.py` says “Thanks for your interest! 🏡 Which location or area are you looking for a property in?” The Sandbox cannot send this custom start template.
 2. Confirm all four required outbound settings are valid: Account SID, Auth Token, WhatsApp sender, and approved start-template SID.
 3. Open `/`, enter a number that has opted in and can receive messages, then click **Send Enquiry**.
 4. The app saves the contact and calls Twilio. The confirmation shows whether Twilio accepted the request. Acceptance means Twilio created the message; check **Twilio Console → Messaging → Logs** for final delivery status.
-5. Reply to the WhatsApp message to continue the questions through the configured webhook.
+5. Reply with a city or area to continue the questionnaire. The contact form's name, email, and phone are carried into the conversation, so the WhatsApp flow begins with location and continues with planning date, budget, payment choice, home type, and optional remarks.
 
 ## 10. Open and use the CRM
 

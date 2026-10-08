@@ -5,6 +5,7 @@ The script prints Content SIDs; paste them into .env. Submit the start text
 template for WhatsApp approval in Twilio Console before enabling form sends.
 """
 
+import argparse
 import os
 
 import requests
@@ -18,6 +19,13 @@ if not account_sid or not auth_token:
     raise SystemExit("Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in .env first.")
 
 CONTENT_API_URL = "https://content.twilio.com/v1/Content"
+parser = argparse.ArgumentParser(description="Create the Twilio WhatsApp content templates.")
+parser.add_argument(
+    "--start-only",
+    action="store_true",
+    help="Create only the form-triggered opening template, not the questionnaire menus.",
+)
+args = parser.parse_args()
 
 
 def create_content(friendly_name: str, types: dict, variables: dict | None = None) -> str:
@@ -139,11 +147,16 @@ start_sid = create_content(
     "property_contact_start",
     {
         "twilio/text": {
-            "body": "Thank you for contacting us. Hi! 👋 Let's find your perfect property. What's your *first name*? Reply with your first name to continue."
+            "body": "Thanks for your interest! 🏡\n\nWhich location or area are you looking for a property in?"
         }
     },
 )
 created["TWILIO_WHATSAPP_START_TEMPLATE_SID"] = start_sid
+
+if args.start_only:
+    print(f"TWILIO_WHATSAPP_START_TEMPLATE_SID={start_sid}")
+    print("Submit this template for WhatsApp approval before using it with a live sender.")
+    raise SystemExit(0)
 
 for _, (env_name, friendly_name, question, rows) in MENUS.items():
     created[env_name] = create_content(

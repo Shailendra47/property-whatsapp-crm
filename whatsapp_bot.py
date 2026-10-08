@@ -22,6 +22,22 @@ TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
 START_TEMPLATE_SID = os.getenv("TWILIO_WHATSAPP_START_TEMPLATE_SID", "")
+START_TEMPLATE_VARIABLES = os.getenv("TWILIO_WHATSAPP_START_TEMPLATE_VARIABLES", "").strip()
+
+
+def start_template_variables() -> dict | None:
+    """Load optional WhatsApp template variables without storing them in code."""
+    if not START_TEMPLATE_VARIABLES:
+        return None
+    try:
+        variables = json.loads(START_TEMPLATE_VARIABLES)
+    except json.JSONDecodeError:
+        logger.error("TWILIO_WHATSAPP_START_TEMPLATE_VARIABLES must be valid JSON.")
+        return None
+    if not isinstance(variables, dict):
+        logger.error("TWILIO_WHATSAPP_START_TEMPLATE_VARIABLES must be a JSON object.")
+        return None
+    return {str(key): str(value) for key, value in variables.items()}
 
 
 def whatsapp_configuration() -> dict:
@@ -187,15 +203,32 @@ def send_content(to_phone: str, content_sid: str, variables: dict | None = None)
         return None
 
 
-async def start_questionnaire(conversations, phone: str, contact_id: str, background_tasks: BackgroundTasks):
+async def start_questionnaire(
+    conversations,
+    phone: str,
+    contact_id: str,
+    background_tasks: BackgroundTasks,
+    *,
+    full_name: str = "",
+    email: str = "",
+):
+    name_parts = full_name.strip().split(maxsplit=1)
+    answers = {
+        "first_name": name_parts[0] if name_parts else "",
+        "last_name": name_parts[1] if len(name_parts) > 1 else "",
+        "email": email,
+        "mobile_number": phone,
+    }
     await conversations.update_one(
         {"phone": phone},
         {"$set": {
             "phone": phone,
             "contact_id": contact_id,
-            "stage": "q1_first_name",
-            "answers": {},
-            "status": "awaiting_first_name",
+            # The contact form already collected name, email, and mobile.
+            # Start the WhatsApp questionnaire at the first missing answer.
+            "stage": "q5_location",
+            "answers": answers,
+            "status": "awaiting_location",
             "updated_at": datetime.now(timezone.utc),
         }},
         upsert=True,
@@ -208,7 +241,12 @@ async def start_questionnaire(conversations, phone: str, contact_id: str, backgr
             {"$set": {"status": "template_not_configured", "updated_at": datetime.now(timezone.utc)}},
         )
         return {"started": False, "status": "configuration_missing", "missing": missing}
-    message_sid = await run_in_threadpool(send_content, phone, START_TEMPLATE_SID)
+    message_sid = await run_in_threadpool(
+        send_content,
+        phone,
+        START_TEMPLATE_SID,
+        start_template_variables(),
+    )
     if not message_sid:
         await conversations.update_one(
             {"phone": phone},
@@ -217,7 +255,7 @@ async def start_questionnaire(conversations, phone: str, contact_id: str, backgr
         return {"started": False, "status": "twilio_rejected"}
     await conversations.update_one(
         {"phone": phone},
-        {"$set": {"status": "awaiting_first_name", "start_message_sid": message_sid, "updated_at": datetime.now(timezone.utc)}},
+        {"$set": {"status": "awaiting_location", "start_message_sid": message_sid, "updated_at": datetime.now(timezone.utc)}},
     )
     return {"started": True, "status": "accepted"}
 
