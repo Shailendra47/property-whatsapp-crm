@@ -55,6 +55,7 @@ if not SESSION_SECRET:
     )
 
 from whatsapp_bot import router as whatsapp_router, start_questionnaire, whatsapp_configuration
+import traceback
 
 
 @asynccontextmanager
@@ -72,13 +73,21 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Property Contact Form", lifespan=lifespan)
 app.include_router(whatsapp_router)
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=SESSION_SECRET,
-    session_cookie="admin_session",
-    max_age=60 * 60 * 8,  # 8 hours
-    same_site="lax",
-)
+# app.add_middleware(
+#     SessionMiddleware,
+#     secret_key=SESSION_SECRET,
+#     session_cookie="admin_session",
+#     max_age=60 * 60 * 8,  # 8 hours
+#     same_site="lax",
+# )
+@app.middleware("http")
+async def debug_requests(request: Request, call_next):
+    print("REQUEST RECEIVED:", request.method, request.url)
+    
+    response = await call_next(request)
+    
+    print("RESPONSE STATUS:", response.status_code)
+    return response
 
 
 class ContactForm(BaseModel):
@@ -444,3 +453,222 @@ async def start_whatsapp_chat():
         f"https://wa.me/{number}?text=Hi",
         status_code=307,
     )
+
+@app.post("/webhooks/whatsapp")
+async def whatsapp_webhook(request: Request, background_tasks: BackgroundTasks):
+    print("here")
+    
+    form = await request.form()
+    params = dict(form)
+    if not TWILIO_AUTH_TOKEN or not PUBLIC_BASE_URL:
+        raise HTTPException(status_code=503, detail="Twilio webhook is not configured")
+    signature = request.headers.get("X-Twilio-Signature", "")
+    webhook_url = f"{PUBLIC_BASE_URL}/webhooks/whatsapp"
+    try:
+        print("========== WHATSAPP WEBHOOK ==========")
+        print("URL:", webhook_url)
+        print("PARAMS:", params)
+        print("SIGNATURE:", repr(signature))
+        print("AUTH TOKEN EXISTS:", bool(TWILIO_AUTH_TOKEN))
+
+        valid = RequestValidator(TWILIO_AUTH_TOKEN).validate(
+            webhook_url,
+            params,
+            signature,
+        )
+
+        print("SIGNATURE VALID:", valid)
+
+        if not valid:
+            raise RuntimeError("Twilio signature validation failed")
+
+    except Exception:
+        print("========== EXCEPTION ==========")
+        traceback.print_exc()
+        raise
+
+    sender = str(form.get("From", ""))
+
+    # ...rest of your existing code
+    # if not RequestValidator(TWILIO_AUTH_TOKEN).validate(webhook_url, params, signature):
+    #     raise HTTPException(status_code=403, detail="Invalid Twilio signature")
+    try:
+        if not RequestValidator(TWILIO_AUTH_TOKEN).validate(
+            webhook_url, params, signature
+        ):
+            raise ValueError("Twilio signature validation failed")
+
+    except Exception:
+        traceback.print_exc()
+        raise
+
+    sender = str(form.get("From", ""))
+    if not sender.startswith("whatsapp:"):
+        raise HTTPException(status_code=400, detail="Expected a WhatsApp message")
+    phone = sender.removeprefix("whatsapp:")
+    text = str(form.get("Body", "")).strip()
+    conversations = request.app.state.whatsapp_conversations
+    conversation = await conversations.find_one({"phone": phone})
+    if not conversation:
+        # This also lets the existing wa.me link start a customer-initiated chat.
+        await conversations.insert_one({
+            "phone": phone,
+            "stage": "q1_first_name",
+            "answers": {},
+            "status": "in_progress",
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        })
+        return twiml(TEXT_PROMPTS["q1_first_name"])
+
+    if text.upper() == "STOP":
+        await conversations.update_one(
+            {"phone": phone},
+            {"$set": {"status": "stopped", "updated_at": datetime.now(timezone.utc)}},
+        )
+        return twiml("You have been opted out of this WhatsApp conversation.")
+    if conversation.get("status") == "stopped":
+        return twiml()
+    if conversation.get("status") == "complete":
+        return twiml("Your answers have already been recorded. Our team will contact you shortly.")
+
+    stage = conversation.get("stage", "q1_first_name")
+    answers = conversation.get("answers", {})
+    answer = text
+
+    list_stage = find_list_stage(stage)
+    if list_stage:
+        selected = list_choice(list_stage, form)
+        if selected is None:
+            return twiml(menu_fallback(list_stage))
+        _, stored_value = selected
+        if stage == "q8_category":
+            category_stages = {
+                "Loan / Bank Finance": "q8_loan",
+                "Cash / Down Payment": "q8_cash",
+                "Developer Plans": "q8_developer",
+            }
+            if stored_value == "NRI Payment Plan (for Overseas Buyers)":
+                answers["payment_option"] = stored_value
+                next_stage = "q9_bhk"
+            else:
+                next_stage = category_stages[stored_value]
+        elif stage == "q6_planning":
+            answers["planning_to_buy"] = stored_value
+            next_stage = "q7_budget"
+        elif stage == "q7_budget":
+            answers["budget_range"] = stored_value
+            next_stage = "q8_category"
+        elif stage == "q9_bhk":
+            answers["bhk_preference"] = stored_value
+            next_stage = "q10_remarks"
+        else:
+            answers["payment_option"] = stored_value
+            next_stage = next_after_preferences(stage)
+        await conversations.update_one(
+            {"phone": phone},
+            {"$set": {"answers": answers, "stage": next_stage, "updated_at": datetime.now(timezone.utc)}},
+        )
+        return twiml(dispatch_stage(next_stage, phone, answers, background_tasks))
+
+    if stage == "q1_first_name":
+        candidate = text.strip()
+        if len(candidate) < 2 or not candidate.isalpha():
+            return twiml("Please enter your first name using letters only (at least 2 letters).\n\n" + TEXT_PROMPTS[stage])
+        answers["first_name"] = candidate
+        next_stage = "q2_last_name"
+    elif stage == "q2_last_name":
+        answers["last_name"] = "" if text.casefold() == "skip" else text[:100]
+        next_stage = "q3_email"
+    elif stage == "q3_email":
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", text):
+            return twiml(TEXT_PROMPTS["q3_email_invalid"])
+        answers["email"] = text
+        next_stage = "q4_mobile"
+    elif stage == "q4_mobile":
+        button_payload = str(form.get("ButtonPayload", "")).strip()
+        button_text = str(form.get("ButtonText", "")).strip()
+        response = (button_payload or button_text or text).casefold()
+        if response in {"mobile_same", "yes, same number", "yes", "same number"}:
+            answers["mobile_number"] = phone
+            next_stage = "q5_location"
+        elif response in {"mobile_other", "use another number"}:
+            next_stage = "q4_mobile_other"
+        else:
+            digits = re.sub(r"\D", "", text)
+            if len(digits) == 10:
+                answers["mobile_number"] = digits
+                next_stage = "q5_location"
+            else:
+                fallback = f"Is *{phone}* the best number to reach you? Reply *Yes*, or type another 10-digit number."
+                return twiml(fallback)
+    elif stage == "q4_mobile_other":
+        digits = re.sub(r"\D", "", text)
+        if len(digits) != 10:
+            return twiml(TEXT_PROMPTS[stage])
+        answers["mobile_number"] = digits
+        next_stage = "q5_location"
+    elif stage == "q5_location":
+        if len(text) < 2:
+            return twiml("Please enter a city or area name.\n\n" + TEXT_PROMPTS[stage])
+        answers["location_preference"] = text[:150]
+        next_stage = "q6_planning"
+    elif stage == "q10_remarks":
+        answers["remarks"] = "" if text.casefold() == "skip" else text[:1000]
+        conversation_id = str(conversation["_id"])
+        lead = {
+            "first_name": answers.get("first_name", ""),
+            "last_name": answers.get("last_name", ""),
+            "email": answers.get("email", ""),
+            "mobile_number": answers.get("mobile_number", phone),
+            "location_preference": answers.get("location_preference", ""),
+            "planning_to_buy": answers.get("planning_to_buy", ""),
+            "budget_range": answers.get("budget_range", ""),
+            "payment_option": answers.get("payment_option", ""),
+            "bhk_preference": answers.get("bhk_preference", ""),
+            "remarks": answers.get("remarks", ""),
+            "whatsapp_number": phone,
+            "whatsapp_conversation_id": conversation_id,
+            "source": "contact_us_whatsapp",
+            "created_at": conversation.get("created_at", datetime.now(timezone.utc)),
+            "completed_at": datetime.now(timezone.utc),
+        }
+        try:
+            lead_result = await request.app.state.enquiries.update_one(
+                {"whatsapp_conversation_id": conversation_id},
+                {"$set": lead},
+                upsert=True,
+            )
+        except Exception:
+            logger.exception("Could not save WhatsApp questionnaire to property_leads")
+            return twiml("Sorry, I couldn't save your answers just now. Please send your remarks again.")
+
+        contact_id = conversation.get("contact_id")
+        if contact_id:
+            try:
+                await request.app.state.contacts.update_one(
+                    {"_id": ObjectId(contact_id)},
+                    {"$set": {"whatsapp_answers": answers, "whatsapp_flow_status": "complete"}},
+                )
+            except Exception:
+                logger.exception("Could not attach WhatsApp answers to contact %s", contact_id)
+        await conversations.update_one(
+            {"phone": phone},
+            {"$set": {
+                "answers": answers,
+                "status": "complete",
+                "stage": "complete",
+                "property_lead_id": str(lead_result.upserted_id) if lead_result.upserted_id else None,
+                "updated_at": datetime.now(timezone.utc),
+            }},
+        )
+        first_name = answers.get("first_name", "there")
+        return twiml(f"✅ Thank you, {first_name}! Our team will contact you shortly with matching options.")
+    else:
+        return twiml("Sorry, I couldn't match that answer. Please reply START to restart.")
+
+    await conversations.update_one(
+        {"phone": phone},
+        {"$set": {"answers": answers, "stage": next_stage, "status": "in_progress", "updated_at": datetime.now(timezone.utc)}},
+    )
+    return twiml(dispatch_stage(next_stage, phone, answers, background_tasks))
